@@ -16,7 +16,38 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="LuckyJet High-Speed Predictor")
 
 # ============= МАТЕМАТИЧЕСКОЕ ЯДРО (ОПТИМИЗИРОВАНО) =============
+import hashlib
+import json
+import requests
 
+# Ваши данные из панели Cryptomus
+MERCHANT_ID = "ВАШ_ID"
+API_KEY = "ВАШ_API_KEY"
+
+@app.post("/create-payment")
+async def create_payment(user_id: str):
+    payload = {
+        "amount": "30.00",
+        "currency": "USD",
+        "order_id": f"sub_{user_id}_{int(datetime.now().timestamp())}",
+        "url_callback": "https://ваш-бэкенд.render.com/webhook/cryptomus"
+    }
+    
+    # Генерация подписи (Signature) по документации Cryptomus
+    data_json = json.dumps(payload)
+    sign = hashlib.md5(
+        (base64.b64encode(data_json.encode()).decode() + API_KEY).encode()
+    ).hexdigest()
+    
+    headers = {
+        "merchant": MERCHANT_ID,
+        "sign": sign,
+        "Content-Type": "application/json"
+    }
+    
+    response = requests.post("https://api.cryptomus.com/v1/payment", headers=headers, data=data_json)
+    return response.json() # Возвращает ссылку на оплату в поле 'url'
+    
 class FastModelManager:
     def __init__(self):
         self.model = None
